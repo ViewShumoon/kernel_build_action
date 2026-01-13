@@ -79,19 +79,6 @@ inputs:
   ccache:
     required: false
     default: false
-  aosp-gcc:
-    required: false
-    default: false
-  other-gcc32-url:
-    required: false
-  other-gcc32-branch:
-    required: false
-    default: main
-  other-gcc64-url:
-    required: false
-  other-gcc64-branch:
-    required: false
-    default: main
   aosp-clang:
     required: false
     default: false
@@ -192,9 +179,6 @@ runs:
         # Download and set up the toolchain
         if [ "${{ inputs.aosp-clang }}" == "true" ]; then
             echo "::group::Downloading AOSP Clang"
-            if [ "${{ inputs.aosp-gcc }}" != "true" ]; then
-                error "AOSP GCC is required when using AOSP Clang."
-            fi
             AOSP_CLANG_URL="https://android.googlesource.com/platform/prebuilts/clang/host/linux-x86/+archive/refs/heads/"
             if [ -n "${{ inputs.android-version }}" ]; then
                 AOSP_CLANG_URL+="android${{ inputs.android-version }}-release/clang-${{ inputs.aosp-clang-version }}.tar.gz"
@@ -215,62 +199,11 @@ runs:
                     fi
                 done
             fi
-            if ! ls "$HOME/clang"/*-linux-* &>/dev/null; then
-                echo "Binutils not found in clang directory. Downloading AOSP GCC"
-                export NEED_GCC=1
-            fi
             echo "::endgroup::"
         else
             SU apt-get install -y clang lld binutils-aarch64-linux-gnu binutils-arm-linux-gnueabihf
         fi
-
-        if [ "${{ inputs.aosp-gcc }}" == "true" ] || [ -n "${NEED_GCC:-}" ]; then
-            echo "::group::Downloading AOSP GCC"
-            if [ -n "${{ inputs.android-version }}" ]; then
-                AOSP_GCC64_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9"
-                AOSP_GCC32_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9"
-                AOSP_GCC_BRANCH="android${{ inputs.android-version }}-release"
-            else
-                AOSP_GCC64_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/aarch64/aarch64-linux-android-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz"
-                AOSP_GCC32_URL="https://android.googlesource.com/platform/prebuilts/gcc/linux-x86/arm/arm-linux-androideabi-4.9/+archive/refs/tags/android-12.1.0_r27.tar.gz"
-            fi
-            download_and_extract "$AOSP_GCC64_URL" "gcc-aarch64" "$HOME/gcc-64" "${AOSP_GCC_BRANCH:-main}"
-            download_and_extract "$AOSP_GCC32_URL" "gcc-arm" "$HOME/gcc-32" "${AOSP_GCC_BRANCH:-main}"
-            echo "::endgroup::"
-        elif [ -n "${{ inputs.other-gcc64-url }}" ] || [ -n "${{ inputs.other-gcc32-url }}" ]; then
-            echo "::group::Downloading Third-party GCC"
-            if [ -n "${{ inputs.other-gcc64-url }}" ]; then
-                download_and_extract "${{ inputs.other-gcc64-url }}" "gcc-aarch64" "$HOME/gcc-64" "${{ inputs.other-gcc64-branch }}"
-            fi
-            if [ -n "${{ inputs.other-gcc32-url }}" ]; then
-                download_and_extract "${{ inputs.other-gcc32-url }}" "gcc-arm" "$HOME/gcc-32" "${{ inputs.other-gcc32-branch }}"
-            fi
-            echo "::endgroup::"
-        fi
-
-        if [ -d "$HOME/gcc-64" ]; then
-            if [ ! -d "$HOME/gcc-64/bin" ]; then
-                # Move nested directories up if bin is not at the expected location
-                for dir in "$HOME/gcc-64"/*/*; do
-                    if [ -d "$dir" ]; then
-                        mv "$dir"/* "$HOME/gcc-64/" 2>/dev/null || true
-                        break
-                    fi
-                done
-            fi
-        fi
-        if [ -d "$HOME/gcc-32" ]; then
-            if [ ! -d "$HOME/gcc-32/bin" ]; then
-                # Move nested directories up if bin is not at the expected location
-                for dir in "$HOME/gcc-32"/*/*; do
-                    if [ -d "$dir" ]; then
-                        mv "$dir"/* "$HOME/gcc-32/" 2>/dev/null || true
-                        break
-                    fi
-                done
-            fi
-        fi
-
+        
         # Clone the kernel source
         echo "::group::Pulling Kernel Source"
         git clone --recursive -b "${{ inputs.kernel-branch }}" --depth="${{ inputs.depth }}" "${{ inputs.kernel-url }}" "kernel/${{ inputs.kernel-dir }}"
@@ -288,34 +221,6 @@ runs:
         fi
 
         cd "kernel/${{ inputs.kernel-dir }}"
-
-        # Set up GCC-related variables
-        if [ -d "$HOME/gcc-64/bin" ] || [ -d "$HOME/gcc-32/bin" ]; then
-            for GCC_DIR in "$HOME/gcc-64" "$HOME/gcc-32"; do
-                find "$GCC_DIR"/*/*/bin -type d -exec sh -c 'mv "$(dirname "$1")"/* "$2"/' _ {} "$GCC_DIR" \; -quit >/dev/null 2>&1 || true
-                if [ -d "$GCC_DIR/bin" ]; then
-                    for FILE in "$GCC_DIR/bin"/*; do
-                        [ ! -e "$FILE" ] && continue
-                        FILE_NAME=$(basename "$FILE")
-                        MATCHED_DIR=""
-                        while IFS= read -r FOLDER; do
-                            FOLDER_NAME=$(basename "$FOLDER")
-                            if [[ "$FILE_NAME" == "$FOLDER_NAME"* ]]; then
-                                MATCHED_DIR="$FOLDER_NAME"
-                                break
-                            fi
-                        done < <(find "$GCC_DIR" -mindepth 1 -maxdepth 1 -type d | sort -r)
-                        if [ -n "$MATCHED_DIR" ]; then
-                            case "$GCC_DIR" in
-                                "$HOME/gcc-64") GCC64="$MATCHED_DIR" ;;
-                                "$HOME/gcc-32") GCC32="$MATCHED_DIR" ;;
-                            esac
-                            break
-                        fi
-                    done
-                fi
-            done
-        fi
 
         # Get kernel version
         VERSION=$(grep -E '^VERSION = ' Makefile | awk '{print $3}')
@@ -503,20 +408,9 @@ runs:
         if [[ -d "$HOME/clang/bin" ]]; then
             CMD_PATH="$HOME/clang/bin"
             CMD_CC="clang"
-            if [[ -d "$HOME/gcc-64/bin" ]] || [[ -d "$HOME/gcc-32/bin" ]]; then
-                CMD_CROSS_COMPILE="$HOME/gcc-64/bin/${GCC64}-"
-                CMD_CROSS_COMPILE_ARM32="$HOME/gcc-32/bin/${GCC32}-"
-            fi
-        elif [[ -d "$HOME/gcc-64/bin" ]] || [[ -d "$HOME/gcc-32/bin" ]]; then
-            CMD_PATH="$HOME/gcc-64/bin:$HOME/gcc-32/bin"
-            if [[ -n "${GCC64:-}" ]]; then
-                CMD_CC="$HOME/gcc-64/bin/${GCC64}-gcc"
-                CMD_CROSS_COMPILE="${GCC64}-"
-            else
-                CMD_CC="$HOME/gcc-32/bin/${GCC32}-gcc"
-                CMD_CROSS_COMPILE="${GCC32}-"
-            fi
-            CMD_CROSS_COMPILE_ARM32="${GCC32}-"
+            # Use system binutils for cross-compilation
+            CMD_CROSS_COMPILE="aarch64-linux-gnu-"
+            CMD_CROSS_COMPILE_ARM32="arm-linux-gnueabihf-"
         else
             CMD_CC="/usr/bin/clang"
             CMD_CROSS_COMPILE="/usr/bin/aarch64-linux-gnu-"
@@ -555,7 +449,7 @@ runs:
 
         echo "::endgroup::"
 
-        unset CMD_PATH CMD_CC CMD_CLANG_TRIPLE CMD_CROSS_COMPILE CMD_CROSS_COMPILE_ARM32 USE_CCACHE CLANG_PATH HOMES KVER SWAP_FILE SUBLEVEL PATCHLEVEL VERSION GCC_DIR FILE FILE_NAME MATCHED_DIR FOLDER FOLDER_NAME GCC64 GCC32 NEED_GCC AOSP_CLANG_URL OTHER_CLANG_URL AOSP_GCC64_URL AOSP_GCC32_URL AOSP_GCC_BRANCH OTHER_GCC64_URL OTHER_GCC32_URL EXTRA_ARGS make_args SAFE_EXTRA_ARGS EXTRA_CMD
+        unset CMD_PATH CMD_CC CMD_CLANG_TRIPLE CMD_CROSS_COMPILE CMD_CROSS_COMPILE_ARM32 USE_CCACHE CLANG_PATH HOMES KVER SWAP_FILE SUBLEVEL PATCHLEVEL VERSION AOSP_CLANG_URL OTHER_CLANG_URL EXTRA_ARGS make_args SAFE_EXTRA_ARGS EXTRA_CMD
 
         # Package the kernel output
         if [ "${{ inputs.anykernel3 }}" == "false" ]; then

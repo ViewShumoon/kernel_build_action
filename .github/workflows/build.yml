@@ -19,9 +19,8 @@ jobs:
           kernel-branch: 16.0
           config: gki_defconfig vendor/kalama_GKI.config vendor/oplus/kalama_GKI.config vendor/debugfs.config
           arch: arm64
-          aosp-gcc: true
-          aosp-clang: true
           android-version: 16
+          aosp-clang: true
           aosp-clang-version: r547379
           ccache: true
           disable-lto: true
