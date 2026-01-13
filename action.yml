@@ -250,7 +250,7 @@ runs:
                     if [ -z "${{ inputs.ksu-url }}" ]; then
                         error "ksu-url is required when ksu-other is true"
                     fi
-                    curl -sSLf "${{ inputs.ksu-url }}/raw/${{ inputs.ksu-version }}/kernel/setup.sh" -o ksu_setup.sh || error "Failed to download KernelSU setup script"
+                    curl -sSLf "${{ inputs.ksu-url }}/${{ inputs.ksu-version }}/kernel/setup.sh" -o ksu_setup.sh || error "Failed to download KernelSU setup script"
                 else
                     curl -sSLf "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" -o ksu_setup.sh || error "Failed to download KernelSU setup script"
                 fi
