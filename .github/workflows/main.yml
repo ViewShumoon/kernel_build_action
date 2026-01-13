@@ -40,7 +40,7 @@ jobs:
           extra-make-args: '["LLVM=1","LLVM_IAS=1"]'
           ksu: true
           ksu-other: true
-          ksu-url: https://github.com/KernelSU-Next/KernelSU-Next
+          ksu-url: https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next
           ksu-version: next
           ksu-lkm: true
           bbg: true
