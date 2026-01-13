@@ -15,16 +15,21 @@ jobs:
       - name: Build Kernel
         uses: dabao1955/kernel_build_action@main
         with:
-          kernel-url: https://github.com/AcmeUI-Devices/android_kernel_xiaomi_cas
-          kernel-dir: msm-4.19
-          kernel-branch: taffy
-          config: cas_defconfig
+          kernel-url: https://github.com/crdroidandroid/android_kernel_oneplus_sm8550
+          kernel-branch: 16.0
+          config: gki_defconfig vendor/kalama_GKI.config vendor/oplus/kalama_GKI.config vendor/debugfs.config
           arch: arm64
           aosp-gcc: true
           aosp-clang: true
-          ksu: true
-          ksu-version: main
-          android-version: 12
-          aosp-clang-version: r383902
+          android-version: 16
+          aosp-clang-version: r547379
+          ccache: true
           disable-lto: true
+          extra-make-args: ["LLVM=1","LLVM_IAS=1"]
+          ksu: true
+          ksu-other: true
+          ksu-url: https://github.com/KernelSU-Next/KernelSU-Next
+          ksu-version: next
+          ksu-lkm: true
+          bbg: true
           anykernel3: true
