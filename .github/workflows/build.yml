@@ -16,7 +16,7 @@ jobs:
         uses: dabao1955/kernel_build_action@main
         with:
           kernel-url: https://github.com/crdroidandroid/android_kernel_oneplus_sm8550
-          kernel-branch: 16.0
+          kernel-branch: '16.0'
           config: gki_defconfig vendor/kalama_GKI.config vendor/oplus/kalama_GKI.config vendor/debugfs.config
           arch: arm64
           android-version: 16
