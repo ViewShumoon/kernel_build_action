@@ -25,7 +25,7 @@ jobs:
           aosp-clang-version: r547379
           ccache: true
           disable-lto: true
-          extra-make-args: ["LLVM=1","LLVM_IAS=1"]
+          extra-make-args: '["LLVM=1","LLVM_IAS=1"]'
           ksu: true
           ksu-other: true
           ksu-url: https://github.com/KernelSU-Next/KernelSU-Next
